@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0.201
+FROM mcr.microsoft.com/dotnet/sdk:8.0.302
 
 LABEL "com.github.actions.name"="sonarscan-dotnet"
 LABEL "com.github.actions.description"="Sonarscanner for .NET 8 with pull request decoration support."
@@ -25,13 +25,11 @@ RUN wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod
 RUN mkdir -p /usr/share/man/man1
 
 # Install the .NET Runtime for SonarScanner
-# The warning message "delaying package configuration, since apt-utils is not installed" is probably not an actual error, just a warning.
-# We don't need apt-utils, we won't install it. The image seems to work even with the warning.
 RUN apt-get update -y \
     && apt-get install --no-install-recommends -y apt-transport-https \
     && apt-get update -y \
     && apt-get install --no-install-recommends -y aspnetcore-runtime-$DOTNETCORE_RUNTIME_VERSION
-    
+
 # Install NodeJS
 RUN apt-get install -y ca-certificates curl gnupg \
     && mkdir -p /etc/apt/keyrings \
@@ -42,6 +40,14 @@ RUN apt-get install -y ca-certificates curl gnupg \
 
 # Install Java Runtime for SonarScanner
 RUN apt-get install --no-install-recommends -y openjdk-$JRE_VERSION-jre
+
+# Install .NET 9 SDK
+RUN mkdir $HOME/dotnet_install && cd $HOME/dotnet_install \
+    && curl -L https://aka.ms/install-dotnet-preview -o install-dotnet-preview.sh \
+    && sudo bash install-dotnet-preview.sh \
+    && export DOTNET_ROOT=$HOME/dotnet \
+    && export PATH=$PATH:$HOME/dotnet \
+    && dotnet --version
 
 # Install SonarScanner .NET global tool
 RUN dotnet tool install dotnet-sonarscanner --tool-path . --version $SONAR_SCANNER_DOTNET_TOOL_VERSION
