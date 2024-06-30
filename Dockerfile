@@ -32,6 +32,11 @@ RUN apt-get update -y \
     && apt-get update -y \
     && apt-get install -y nodejs openjdk-$JRE_VERSION-jre
 
+# Install .NET 8 SDK
+RUN wget https://dotnet.microsoft.com/download/dotnet/thank-you/sdk-8.0.100-preview.7-linux-x64-binaries \
+    && tar -zxf dotnet-sdk-8.0.100-preview.7-linux-x64-binaries.tar.gz -C /usr/share/dotnet \
+    && rm dotnet-sdk-8.0.100-preview.7-linux-x64-binaries.tar.gz
+
 # Install SonarScanner .NET global tool
 RUN dotnet tool install dotnet-sonarscanner --tool-path . --version $SONAR_SCANNER_DOTNET_TOOL_VERSION
 
