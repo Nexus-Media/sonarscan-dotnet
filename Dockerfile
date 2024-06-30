@@ -23,19 +23,15 @@ RUN wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod
 # Fix JRE Install https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 RUN mkdir -p /usr/share/man/man1
 
-# Install NodeJS
+# Install NodeJS and .NET 8 SDK
 RUN apt-get update -y \
     && apt-get install -y ca-certificates curl gnupg apt-transport-https \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_VERSION.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update -y \
-    && apt-get install -y nodejs openjdk-$JRE_VERSION-jre
-
-# Install .NET 8 SDK
-RUN wget https://dotnet.microsoft.com/download/dotnet/thank-you/sdk-8.0.100-preview.7-linux-x64-binaries \
-    && tar -zxf dotnet-sdk-8.0.100-preview.7-linux-x64-binaries.tar.gz -C /usr/share/dotnet \
-    && rm dotnet-sdk-8.0.100-preview.7-linux-x64-binaries.tar.gz
+    && apt-get install -y nodejs openjdk-$JRE_VERSION-jre \
+    && apt-get install -y dotnet-sdk-8.0
 
 # Install SonarScanner .NET global tool
 RUN dotnet tool install dotnet-sonarscanner --tool-path . --version $SONAR_SCANNER_DOTNET_TOOL_VERSION
