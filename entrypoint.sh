@@ -108,7 +108,7 @@ if [[ $GITHUB_EVENT_NAME == 'pull_request' ]]; then
 fi
 
 #Skip JRE provisioning in SonarScanner for MSBuild v7.0+. Instead use the JRE provided by the Docker image (which must be in the PATH).
-sonar_begin_cmd="$sonar_begin_cmd /d:sonar.scanner.skipJreProvisioning=true"
+# sonar_begin_cmd="$sonar_begin_cmd /d:sonar.scanner.skipJreProvisioning=true"
 
 #-----------------------------------
 # Build Sonarscanner end command
