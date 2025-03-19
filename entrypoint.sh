@@ -175,24 +175,20 @@ sh -c "$sonar_end_cmd" 2>&1 | tee -a "$analysis_output_file"
 compiler_errors=$(grep -E "error CS[0-9]+" "$analysis_output_file" -A 5 || true)
 test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
 
-# Combine the snippets if they exist
-error_snippet=""
-if [ ! -z "$compiler_errors" ]; then
-    error_snippet="Compiler Errors:\n$compiler_errors"
-fi
-if [ ! -z "$test_failures" ]; then
-    if [ ! -z "$error_snippet" ]; then
-        error_snippet="$error_snippet\n\n"
+if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
+    error_snippet="Analysis Issues:\n"
+    if [ ! -z "$compiler_errors" ]; then
+        error_snippet+="Compiler Errors:\n$compiler_errors\n"
     fi
-    error_snippet="${error_snippet}Test Failures:\n$test_failures"
-fi
-
-if [ ! -z "$error_snippet" ]; then
+    if [ ! -z "$test_failures" ]; then
+        error_snippet+="Test Failures:\n$test_failures"
+    fi
     # Escape special characters for GitHub Actions output
     error_snippet="${error_snippet//'%'/'%25'}"
     error_snippet="${error_snippet//$'\n'/'%0A'}"
     error_snippet="${error_snippet//$'\r'/'%0D'}"
-    echo "::set-output name=analysis_snippet::$error_snippet"
+    echo "analysis_snippet=$error_snippet" >> $GITHUB_OUTPUT
 else
-    echo "::set-output name=analysis_snippet::No errors or test failures found"
+    echo "analysis_snippet=No errors or test failures found" >> $GITHUB_OUTPUT
 fi
+
