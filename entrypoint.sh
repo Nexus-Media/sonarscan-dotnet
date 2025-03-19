@@ -144,24 +144,55 @@ fi
 #-----------------------------------
 echo "Shell commands"
 
+#Create a temporary file to store the analysis outoput
+analysis_output_file="/tmp/sonar_analysis_output.txt"
+touch $analysis_output_file
+
 #Run Sonarscanner .NET Core "begin" command
 echo "sonar_begin_cmd: $sonar_begin_cmd"
-sh -c "$sonar_begin_cmd"
+sh -c "$sonar_begin_cmd" 2>&1 | tee -a "$analysis_otput_file"
 
 #Run dotnet pre build command
 echo "dotnet_prebuild_cmd: $dotnet_prebuild_cmd"
-sh -c "${dotnet_prebuild_cmd}"
+sh -c "${dotnet_prebuild_cmd}" 2>&1 | tee -a "$analysis_output_file"
 
 #Run dotnet build command
 echo "dotnet_build_cmd: $dotnet_build_cmd"
-sh -c "${dotnet_build_cmd}"
+sh -c "${dotnet_build_cmd}" 2>&1 | tee -a "$analysis_output_file"
 
 #Run dotnet test command (unless user choose not to)
 if ! [[ "${INPUT_DOTNETDISABLETESTS,,}" == "true" || "${INPUT_DOTNETDISABLETESTS}" == "1" ]]; then
     echo "dotnet_test_cmd: $dotnet_test_cmd"
-    sh -c "${dotnet_test_cmd}"
+    sh -c "${dotnet_test_cmd}" 2>&1 | tee -a "$analysis_output_file"
 fi
 
 #Run Sonarscanner .NET Core "end" command
 echo "sonar_end_cmd: $sonar_end_cmd"
-sh -c "$sonar_end_cmd"
+sh -c "$sonar_end_cmd" 2>&1 | tee -a "$analysis_output_file"
+
+# Extract relevant snippets and set as output
+# Look for compiler errors and failed tests
+compiler_errors=$(grep -E "error CS[0-9]+" "$analysis_output_file" -A 5 || true)
+test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
+
+# Combine the snippets if they exist
+error_snippet=""
+if [ ! -z "$compiler_errors" ]; then
+    error_snippet="Compiler Errors:\n$compiler_errors"
+fi
+if [ ! -z "$test_failures" ]; then
+    if [ ! -z "$error_snippet" ]; then
+        error_snippet="$error_snippet\n\n"
+    fi
+    error_snippet="${error_snippet}Test Failures:\n$test_failures"
+fi
+
+if [ ! -z "$error_snippet" ]; then
+    # Escape special characters for GitHub Actions output
+    error_snippet="${error_snippet//'%'/'%25'}"
+    error_snippet="${error_snippet//$'\n'/'%0A'}"
+    error_snippet="${error_snippet//$'\r'/'%0D'}"
+    echo "::set-output name=analysis_snippet::$error_snippet"
+else
+    echo "::set-output name=analysis_snippet::No errors or test failures found"
+fi
