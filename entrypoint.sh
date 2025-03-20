@@ -170,7 +170,7 @@ run_command() {
 # Function to extract error snippets and set as output
 extract_error_snippets() {
     # Look for compiler errors and failed tests
-    compiler_errors=$(grep -E "error CS[0-9]+" "$analysis_output_file" -A 5 || true)
+    compiler_errors=$(grep -E "error [A-Z]+[0-9]+" "$analysis_output_file" -A 5 | grep -v "warning" || true)
     test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
 
     if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
@@ -210,4 +210,3 @@ run_command "sonar_end_cmd" "$sonar_end_cmd"
 
 # Final output extract in case all commands succeeded
 extract_error_snippets
-
