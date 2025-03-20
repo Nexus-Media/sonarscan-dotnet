@@ -174,7 +174,7 @@ extract_error_snippets() {
     test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
 
     if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
-        error_snippet="Analysis Issues:\n"
+        error_snippet=""
         if [ ! -z "$compiler_errors" ]; then
             error_snippet+="Compiler Errors:\n$compiler_errors\n"
         fi
