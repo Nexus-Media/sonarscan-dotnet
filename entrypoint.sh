@@ -150,7 +150,7 @@ touch $analysis_output_file
 
 #Run Sonarscanner .NET Core "begin" command
 echo "sonar_begin_cmd: $sonar_begin_cmd"
-sh -c "$sonar_begin_cmd" 2>&1 | tee -a "$analysis_otput_file"
+sh -c "$sonar_begin_cmd" 2>&1 | tee -a "$analysis_output_file"
 
 #Run dotnet pre build command
 echo "dotnet_prebuild_cmd: $dotnet_prebuild_cmd"
