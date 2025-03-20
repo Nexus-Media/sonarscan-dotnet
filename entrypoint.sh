@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o pipefail
-set -eu
+# We'll handle errors manually instead of using set -e
+set -u
 
 # Check required parameters has a value
 if [ -z "$INPUT_SONARPROJECTKEY" ]; then
@@ -144,51 +145,68 @@ fi
 #-----------------------------------
 echo "Shell commands"
 
-#Create a temporary file to store the analysis outoput
+#Create a temporary file to store the analysis output
 analysis_output_file="/tmp/sonar_analysis_output.txt"
 touch $analysis_output_file
 
+# Function to run command, capture output, and handle errors
+run_command() {
+    local cmd_name="$1"
+    local cmd="$2"
+    
+    echo "$cmd_name: $cmd"
+    sh -c "$cmd" 2>&1 | tee -a "$analysis_output_file"
+    local exit_code=${PIPESTATUS[0]}
+    
+    if [ $exit_code -ne 0 ]; then
+        # Extract relevant snippets for GitHub Actions output
+        extract_error_snippets
+        echo "Command '$cmd_name' failed with exit code $exit_code"
+        exit $exit_code
+    fi
+}
+
+# Function to extract error snippets and set as output
+extract_error_snippets() {
+    # Look for compiler errors and failed tests
+    compiler_errors=$(grep -E "error CS[0-9]+" "$analysis_output_file" -A 5 || true)
+    test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
+
+    if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
+        error_snippet="Analysis Issues:\n"
+        if [ ! -z "$compiler_errors" ]; then
+            error_snippet+="Compiler Errors:\n$compiler_errors\n"
+        fi
+        if [ ! -z "$test_failures" ]; then
+            error_snippet+="Test Failures:\n$test_failures"
+        fi
+        # Escape special characters for GitHub Actions output
+        error_snippet="${error_snippet//'%'/'%25'}"
+        error_snippet="${error_snippet//$'\n'/'%0A'}"
+        error_snippet="${error_snippet//$'\r'/'%0D'}"
+        echo "analysis_snippet=$error_snippet" >> $GITHUB_OUTPUT
+    else
+        echo "analysis_snippet=No errors or test failures found" >> $GITHUB_OUTPUT
+    fi
+}
+
 #Run Sonarscanner .NET Core "begin" command
-echo "sonar_begin_cmd: $sonar_begin_cmd"
-sh -c "$sonar_begin_cmd" 2>&1 | tee -a "$analysis_output_file"
+run_command "sonar_begin_cmd" "$sonar_begin_cmd"
 
 #Run dotnet pre build command
-echo "dotnet_prebuild_cmd: $dotnet_prebuild_cmd"
-sh -c "${dotnet_prebuild_cmd}" 2>&1 | tee -a "$analysis_output_file"
+run_command "dotnet_prebuild_cmd" "$dotnet_prebuild_cmd"
 
 #Run dotnet build command
-echo "dotnet_build_cmd: $dotnet_build_cmd"
-sh -c "${dotnet_build_cmd}" 2>&1 | tee -a "$analysis_output_file"
+run_command "dotnet_build_cmd" "$dotnet_build_cmd"
 
 #Run dotnet test command (unless user choose not to)
 if ! [[ "${INPUT_DOTNETDISABLETESTS,,}" == "true" || "${INPUT_DOTNETDISABLETESTS}" == "1" ]]; then
-    echo "dotnet_test_cmd: $dotnet_test_cmd"
-    sh -c "${dotnet_test_cmd}" 2>&1 | tee -a "$analysis_output_file"
+    run_command "dotnet_test_cmd" "$dotnet_test_cmd"
 fi
 
 #Run Sonarscanner .NET Core "end" command
-echo "sonar_end_cmd: $sonar_end_cmd"
-sh -c "$sonar_end_cmd" 2>&1 | tee -a "$analysis_output_file"
+run_command "sonar_end_cmd" "$sonar_end_cmd"
 
-# Extract relevant snippets and set as output
-# Look for compiler errors and failed tests
-compiler_errors=$(grep -E "error CS[0-9]+" "$analysis_output_file" -A 5 || true)
-test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
-
-if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
-    error_snippet="Analysis Issues:\n"
-    if [ ! -z "$compiler_errors" ]; then
-        error_snippet+="Compiler Errors:\n$compiler_errors\n"
-    fi
-    if [ ! -z "$test_failures" ]; then
-        error_snippet+="Test Failures:\n$test_failures"
-    fi
-    # Escape special characters for GitHub Actions output
-    error_snippet="${error_snippet//'%'/'%25'}"
-    error_snippet="${error_snippet//$'\n'/'%0A'}"
-    error_snippet="${error_snippet//$'\r'/'%0D'}"
-    echo "analysis_snippet=$error_snippet" >> $GITHUB_OUTPUT
-else
-    echo "analysis_snippet=No errors or test failures found" >> $GITHUB_OUTPUT
-fi
+# Final output extract in case all commands succeeded
+extract_error_snippets
 
