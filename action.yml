@@ -38,7 +38,7 @@ outputs:
 
 runs:
   using: "docker"
-  image: "docker://ghcr.io/nexus-media/sonarscan-dotnet:1.0.1-log-to-file"
+  image: "docker://ghcr.io/nexus-media/sonarscan-dotnet:1.0.2-log-to-file"
 
 branding:
   icon: 'check-square'
