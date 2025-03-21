@@ -174,18 +174,28 @@ extract_error_snippets() {
     test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
 
     if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
-        error_snippet=""
+        # Create a temporary file for the output
+        temp_output=$(mktemp)
+        
         if [ ! -z "$compiler_errors" ]; then
-            error_snippet+="Compiler Errors:\n$compiler_errors\n"
+            echo "Compiler Errors:" >> "$temp_output"
+            echo "$compiler_errors" >> "$temp_output"
+            echo "" >> "$temp_output"
         fi
         if [ ! -z "$test_failures" ]; then
-            error_snippet+="Test Failures:\n$test_failures"
+            echo "Test Failures:" >> "$temp_output"
+            echo "$test_failures" >> "$temp_output"
         fi
-        # Escape special characters for GitHub Actions output
-        error_snippet="${error_snippet//'%'/'%25'}"
-        error_snippet="${error_snippet//$'\n'/'%0A'}"
-        error_snippet="${error_snippet//$'\r'/'%0D'}"
-        echo "analysis_snippet=$error_snippet" >> $GITHUB_OUTPUT
+        
+        # Use a delimiter-based approach for GitHub Actions output
+        delimiter="EOF_$(date +%s)"
+        {
+            echo "analysis_snippet<<$delimiter"
+            cat "$temp_output"
+            echo "$delimiter"
+        } >> $GITHUB_OUTPUT
+        
+        rm -f "$temp_output"
     else
         echo "analysis_snippet=No errors or test failures found" >> $GITHUB_OUTPUT
     fi
