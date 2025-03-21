@@ -171,7 +171,7 @@ run_command() {
 extract_error_snippets() {
     # Look for compiler errors and failed tests
     compiler_errors=$(grep -E "error [A-Z]+[0-9]+" "$analysis_output_file" -A 5 | grep -v "warning" || true)
-    test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 12 || true)
+    test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 50 || true)
 
     if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
         # Create a temporary file for the output
