@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o pipefail
-set -eu
+# We'll handle errors manually instead of using set -e
+set -u
 
 # Check required parameters has a value
 if [ -z "$INPUT_SONARPROJECTKEY" ]; then
@@ -144,24 +145,77 @@ fi
 #-----------------------------------
 echo "Shell commands"
 
+#Create a temporary file to store the analysis output
+analysis_output_file="/tmp/sonar_analysis_output.txt"
+touch $analysis_output_file
+
+# Function to run command, capture output, and handle errors
+run_command() {
+    local cmd_name="$1"
+    local cmd="$2"
+    
+    echo "$cmd_name: $cmd"
+    sh -c "$cmd" 2>&1 | tee -a "$analysis_output_file"
+    local exit_code=${PIPESTATUS[0]}
+    
+    if [ $exit_code -ne 0 ]; then
+        # Extract relevant snippets for GitHub Actions output
+        extract_error_snippets
+        echo "Command '$cmd_name' failed with exit code $exit_code"
+        exit $exit_code
+    fi
+}
+
+# Function to extract error snippets and set as output
+extract_error_snippets() {
+    # Look for compiler errors and failed tests
+    compiler_errors=$(grep -E "error [A-Z]+[0-9]+" "$analysis_output_file" -A 5 | grep -v "warning" || true)
+    test_failures=$(grep -E "\[FAIL\]" "$analysis_output_file" -A 50 || true)
+
+    if [ ! -z "$compiler_errors" ] || [ ! -z "$test_failures" ]; then
+        # Create a temporary file for the output
+        temp_output=$(mktemp)
+        
+        if [ ! -z "$compiler_errors" ]; then
+            echo "Compiler Errors:" >> "$temp_output"
+            echo "$compiler_errors" >> "$temp_output"
+            echo "" >> "$temp_output"
+        fi
+        if [ ! -z "$test_failures" ]; then
+            echo "Test Failures:" >> "$temp_output"
+            echo "$test_failures" >> "$temp_output"
+        fi
+        
+        # Use a delimiter-based approach for GitHub Actions output
+        delimiter="EOF_$(date +%s)"
+        {
+            echo "analysis_snippet<<$delimiter"
+            cat "$temp_output"
+            echo "$delimiter"
+        } >> $GITHUB_OUTPUT
+        
+        rm -f "$temp_output"
+    else
+        echo "analysis_snippet=No errors or test failures found" >> $GITHUB_OUTPUT
+    fi
+}
+
 #Run Sonarscanner .NET Core "begin" command
-echo "sonar_begin_cmd: $sonar_begin_cmd"
-sh -c "$sonar_begin_cmd"
+run_command "sonar_begin_cmd" "$sonar_begin_cmd"
 
 #Run dotnet pre build command
-echo "dotnet_prebuild_cmd: $dotnet_prebuild_cmd"
-sh -c "${dotnet_prebuild_cmd}"
+run_command "dotnet_prebuild_cmd" "$dotnet_prebuild_cmd"
 
 #Run dotnet build command
-echo "dotnet_build_cmd: $dotnet_build_cmd"
-sh -c "${dotnet_build_cmd}"
+run_command "dotnet_build_cmd" "$dotnet_build_cmd"
 
 #Run dotnet test command (unless user choose not to)
 if ! [[ "${INPUT_DOTNETDISABLETESTS,,}" == "true" || "${INPUT_DOTNETDISABLETESTS}" == "1" ]]; then
-    echo "dotnet_test_cmd: $dotnet_test_cmd"
-    sh -c "${dotnet_test_cmd}"
+    run_command "dotnet_test_cmd" "$dotnet_test_cmd"
 fi
 
 #Run Sonarscanner .NET Core "end" command
-echo "sonar_end_cmd: $sonar_end_cmd"
-sh -c "$sonar_end_cmd"
+run_command "sonar_end_cmd" "$sonar_end_cmd"
+
+# Final output extract in case all commands succeeded
+extract_error_snippets

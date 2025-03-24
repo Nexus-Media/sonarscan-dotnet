@@ -32,6 +32,10 @@ inputs:
     default: "https://sonarcloud.io"
     required: false
 
+outputs:
+  analysis_snippet:
+    description: "Extracted snippet from analysis output containing build errors or test failures"
+
 runs:
   using: "docker"
   image: "docker://ghcr.io/nexus-media/sonarscan-dotnet:latest"
