@@ -16,7 +16,7 @@ on:
 jobs:
   build-and-release:
 
-    runs-on: ubuntu-arm
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
