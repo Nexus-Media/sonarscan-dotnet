@@ -1,7 +1,7 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0.300
+FROM mcr.microsoft.com/dotnet/sdk:10.0
 
 LABEL "com.github.actions.name"="sonarscan-dotnet"
-LABEL "com.github.actions.description"="SonarScanner for .NET 9 with pull request decoration support."
+LABEL "com.github.actions.description"="SonarScanner for .NET 10 with pull request decoration support."
 LABEL "com.github.actions.icon"="check-square"
 LABEL "com.github.actions.color"="blue"
 
@@ -12,7 +12,7 @@ LABEL "homepage"="https://github.com/highbyte"
 LABEL "maintainer"="Highbyte"
 
 # Version numbers of used software
-ENV SONAR_SCANNER_DOTNET_TOOL_VERSION=10.1.2 \
+ENV SONAR_SCANNER_DOTNET_TOOL_VERSION=11.0.0 \
     NODE_VERSION=22 \
     JRE_VERSION=17
 
